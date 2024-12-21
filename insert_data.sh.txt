@@ -1,0 +1,51 @@
+#! /bin/bash
+
+if [[ $1 == "test" ]]
+then
+  PSQL="psql --username=postgres --dbname=worldcuptest -t --no-align -c"
+else
+  PSQL="psql --username=freecodecamp --dbname=worldcup -t --no-align -c"
+fi
+
+# Do not change code above this line. Use the PSQL variable above to query your database.
+
+data="games.csv"
+skip_header=true
+while IFS=, read -r year round winner opponent winner_goals opponent_goals;
+do
+  # Skip header row
+  if [[ $skip_header == true ]]; then
+    skip_header=false
+    continue
+  fi
+
+# --- BUILD TEAMS TABLE ---
+  # Check if the wining team has already been added into database
+  check_team1=$($PSQL "SELECT team_id FROM teams WHERE name = '$winner'")
+
+  # If team has not yet been added, add the winning team
+  if [[ -z $check_team1 ]]; then
+    INSERT_WINNER=$($PSQL "INSERT INTO teams(name) VALUES('$winner')")
+    echo "Added $winner"
+    check_team1=$($PSQL "SELECT team_id FROM teams WHERE name = '$winner'")
+    echo $check_team1
+  else
+    echo "Already there"
+  fi
+
+  # Check if the losing team has already been added into database
+  check_team2=$($PSQL "SELECT team_id FROM teams WHERE name = '$opponent'")
+
+  # If team has not yet been added, add the losing team
+  if [[ -z $check_team2 ]]; then
+    INSERT_LOSER=$($PSQL "INSERT INTO teams(name) VALUES('$opponent')")
+    echo "Added $opponent"
+    check_team2=$($PSQL "SELECT team_id FROM teams WHERE name = '$opponent'")
+    echo $check_team2
+  else
+    echo "Already there"
+  fi
+
+  # --- BUILD GAMES TABLE ---
+  echo $($PSQL "INSERT INTO games(year, round, winner_id, opponent_id, winner_goals, opponent_goals) VALUES('$year', '$round', '$check_team1', '$check_team2', '$winner_goals', '$opponent_goals')")
+done < $data
